@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import com.gwise.restapi.common.ErrorsResource;
+
 @Controller
 @RequestMapping(value = "/api/events", produces = MediaTypes.HAL_JSON_UTF8_VALUE)
 public class EventController {
@@ -62,6 +64,7 @@ public class EventController {
 	}
 
 	private ResponseEntity badRequest(Errors errors) {
-		return ResponseEntity.badRequest().body(errors); // .build();
+		//return ResponseEntity.badRequest().body(errors); // .build();
+		return ResponseEntity.badRequest().body(new ErrorsResource(errors));
 	}
 }
