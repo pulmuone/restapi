@@ -7,11 +7,13 @@ import java.net.URI;
 import javax.validation.Valid;
 
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Pageable;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.hateoas.mvc.ControllerLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.Errors;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +35,12 @@ public class EventController {
 		this.eventValidator = eventValidator;
 	}
 
+	@GetMapping
+	public ResponseEntity queryEvents(Pageable pageable) {
+		return ResponseEntity.ok(this.eventRepository.findAll(pageable));
+	}
+
+	
 	@PostMapping
 	public ResponseEntity createEvent(@RequestBody @Valid EventDto eventDto,
 			Errors errors) {
