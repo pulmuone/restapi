@@ -15,6 +15,7 @@ import org.springframework.hateoas.MediaTypes;
 import org.springframework.hateoas.PagedResources;
 import org.springframework.hateoas.Resource;
 import org.springframework.hateoas.mvc.ControllerLinkBuilder;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.Errors;
@@ -25,6 +26,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import com.gwise.restapi.accounts.Account;
+import com.gwise.restapi.accounts.CurrentUser;
 import com.gwise.restapi.common.ErrorsResource;
 
 @Controller
@@ -41,7 +44,8 @@ public class EventController {
 	}
 
 	@PutMapping("/{id}")
-	public ResponseEntity updateEvent(@PathVariable Integer id, @RequestBody @Valid EventDto eventDto, Errors errors) {
+	public ResponseEntity updateEvent(@PathVariable Integer id, @RequestBody @Valid EventDto eventDto, Errors errors,
+			@CurrentUser Account currentUser) {
 		// Id와 맵핑되는 Event가 없으면 404에러 처리.
 		Optional<Event> optionalEvent = this.eventRepository.findById(id);
 		if (optionalEvent.isEmpty()) {
@@ -59,6 +63,12 @@ public class EventController {
 		// 입력받은 EventDto와 DB에서 읽어온 Event를 맵핑
 		// 맵핑된 Event를 Save(등록) 한다.
 		Event existingEvent = optionalEvent.get();
+
+		//저장하기 전에 빠져 나간다.
+		if ((existingEvent.getManager() != null) && (!existingEvent.getManager().equals(currentUser))) {
+			return new ResponseEntity(HttpStatus.UNAUTHORIZED);
+		}
+
 		this.modelMapper.map(eventDto, existingEvent);
 		Event savedEvent = this.eventRepository.save(existingEvent);
 		// update된 Event를 EventResource로 Wrapping해서 Response Body에 전달 한다.
@@ -67,26 +77,38 @@ public class EventController {
 	}
 
 	@GetMapping
-	public ResponseEntity queryEvents(Pageable pageable, PagedResourcesAssembler<Event> assembler) {
+	public ResponseEntity queryEvents(Pageable pageable, PagedResourcesAssembler<Event> assembler,
+			@CurrentUser Account currentUser) {
 		Page<Event> page = this.eventRepository.findAll(pageable);
 		PagedResources<Resource<Event>> pagedResource = assembler.toResource(page, event -> new EventResource(event));
+
+		// 로그인한 상태이면 event를 create하는 링크를 추가해 준다.
+		if (currentUser != null) {
+			pagedResource.add(linkTo(EventController.class).withRel("create-event"));
+		}
 
 		return ResponseEntity.ok(pagedResource);
 	}
 
 	@GetMapping("/{id}")
-	public ResponseEntity getEvent(@PathVariable Integer id) {
+	public ResponseEntity getEvent(@PathVariable Integer id, @CurrentUser Account currentUser) {
 		Optional<Event> optionalEvent = this.eventRepository.findById(id); // 값이 null일 수도 있다.
 		if (optionalEvent.isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
 		Event event = optionalEvent.get();
 		EventResource eventResource = new EventResource(event);
+
+		if ((event.getManager() != null) && (event.getManager().equals(currentUser))) {
+			eventResource.add(linkTo(EventController.class).slash(event.getId()).withRel("update-event"));
+		}
+
 		return ResponseEntity.ok(eventResource);
 	}
 
 	@PostMapping
-	public ResponseEntity createEvent(@RequestBody @Valid EventDto eventDto, Errors errors) {
+	public ResponseEntity createEvent(@RequestBody @Valid EventDto eventDto, Errors errors,
+			@CurrentUser Account currentUser) {
 		// EventDto 제약조건 에러'
 		// 한번에 에러 메시지를 출력하려면 주석처리한다.
 		if (errors.hasErrors()) {
@@ -102,6 +124,9 @@ public class EventController {
 		Event event = modelMapper.map(eventDto, Event.class);
 		// free, offline 필드값 처리
 		event.update();
+
+		event.setManager(currentUser);
+
 		Event addEvent = this.eventRepository.save(event);
 
 		ControllerLinkBuilder selfLinkBuilder = linkTo(EventController.class).slash(addEvent.getId());

@@ -7,6 +7,11 @@ import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.ManyToOne;
+
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.gwise.restapi.accounts.Account;
+import com.gwise.restapi.accounts.AccountSerializer;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -55,5 +60,8 @@ public class Event {
 			this.offline = true;
 		}
 	}
-
+	
+	@ManyToOne
+	@JsonSerialize(using = AccountSerializer.class)
+	private Account manager;
 }
